@@ -13,23 +13,34 @@ The Arabic and Chinese extractors encode each saved frame as a **138-value vecto
 | Script | Input and purpose |
 | --- | --- |
 | [`convert2keypArabic-local.py`](convert2keypArabic-local.py) | Arabic Sign Language frame folders → NumPy keypoints |
-| [`convert2keypArabic.py`](convert2keypArabic.py) | Arabic Sign Language frame folders → keypoints and pose overlays |
-| [`convert2keypCSLvid.py`](convert2keypCSLvid.py) | Chinese Sign Language video files → keypoints and pose overlays |
+| [`convert2keypArabic.py`](convert2keypArabic.py) | Arabic Sign Language frame folders → keypoints with optional pose overlays |
+| [`convert2keypCSLvid.py`](convert2keypCSLvid.py) | Chinese Sign Language video files → keypoints with optional pose overlays |
 | [`convert2keypChinese-local - Copy.py`](convert2keypChinese-local%20-%20Copy.py) | Chinese Sign Language frame folders → NumPy keypoints |
 | [`convert2keypChinese-outlier60.py`](convert2keypChinese-outlier60.py), [`convert2keypChinese-outlier70.py`](convert2keypChinese-outlier70.py) | Chinese Sign Language frame folders with experimental outlier filtering |
 | [`convert2keypPhoenix.py`](convert2keypPhoenix.py) | PHOENIX-2014-T frame folders → hand, upper-body, and selected face keypoints |
 
-## Running the frame extractor
+## Quick start
 
-1. Use a Python environment with NumPy, OpenCV (`opencv-python`), and a MediaPipe release that provides the legacy `mp.solutions.holistic` API.
-2. Arrange your frame images as `<dataset>/<split>/<sign-class>/<clip>/<frame-image>`.
-3. In `convert2keypArabic-local.py`, set `path` to your dataset root and `newcoordspath` to your output root. Run:
+Use Python 3.10–3.12 on a platform supported by MediaPipe. Install the dependencies in a virtual environment.
 
-   ```bash
-   python convert2keypArabic-local.py
-   ```
+```bash
+python -m venv .venv
+# Activate the environment for your shell before installing:
+python -m pip install -r requirements.txt
+python extract_keypoints.py --help
+```
 
-The extractor mirrors the input folder structure under the output root and writes one `.npy` file per processed frame. The original frame extractors assume a pose is detected and can stop on frames without one.
+```bash
+python extract_keypoints.py data/frames output/keypoints
+python extract_keypoints.py data/videos output/keypoints --mode videos --overlays output/overlays
+python extract_keypoints.py data/phoenix output/phoenix --layout phoenix
+```
+
+Pass a single file or a directory. Directories are scanned recursively, and output paths mirror the input tree. For example, an input image at `train/clip/frame.jpg` produces `train/clip/frame.jpg.npy`. A video at `train/clip.mp4` produces files such as `train/clip.mp4/frame_000001.npy`. Video filenames use the original frame number, so gaps indicate skipped frames.
+
+The standard layout has 138 values. The PHOENIX layout has 171 values and appends 11 facial points from the pose model. Frames without a detected pose are skipped. The main command writes `float32` by default and accepts `--dtype float64`. Use a fresh output directory when changing filters or layouts to avoid mixing results across runs.
+
+The original script names remain available as shortcuts with the same input, output, and optional overlay arguments. The Chinese outlier scripts use wrist thresholds of 0.60 and 0.70, respectively. They keep a frame when either wrist's normalised y coordinate is below the threshold. The main command exposes this filter as `--wrist-threshold`.
 
 ## Research context
 
