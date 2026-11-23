@@ -1,46 +1,65 @@
 # MediaPipe Keypoint Extraction for Sign Language Recognition
 
-Python research scripts that turn sign language videos and frame images into landmark features using MediaPipe Holistic, OpenCV, and NumPy. This repository contains the feature extraction code associated with [*The Influence of Iconicity in Transfer Learning for Sign Language Recognition*](https://doi.org/10.1007/978-3-031-70239-6_16) (NLDB 2024).
-
-## How the features are built
-
-The scripts read frames with OpenCV, convert them from BGR to RGB for MediaPipe Holistic, and save the extracted coordinates as per-frame NumPy `.npy` files.
-
-The Arabic and Chinese extractors encode each saved frame as a **138-value vector**. It contains 21 landmarks per hand, followed by the left shoulder, right shoulder, left wrist, and right wrist. Each landmark contributes `(x, y, z)` coordinates. If a hand is missing, its 63 values are filled with zeros. The PHOENIX extractor also appends selected face landmarks.
-
-## Scripts
-
-| Script | Input and purpose |
-| --- | --- |
-| [`convert2keypArabic-local.py`](convert2keypArabic-local.py) | Arabic Sign Language frame folders → NumPy keypoints |
-| [`convert2keypArabic.py`](convert2keypArabic.py) | Arabic Sign Language frame folders → keypoints with optional pose overlays |
-| [`convert2keypCSLvid.py`](convert2keypCSLvid.py) | Chinese Sign Language video files → keypoints with optional pose overlays |
-| [`convert2keypChinese-local - Copy.py`](convert2keypChinese-local%20-%20Copy.py) | Chinese Sign Language frame folders → NumPy keypoints |
-| [`convert2keypChinese-outlier60.py`](convert2keypChinese-outlier60.py), [`convert2keypChinese-outlier70.py`](convert2keypChinese-outlier70.py) | Chinese Sign Language frame folders with experimental outlier filtering |
-| [`convert2keypPhoenix.py`](convert2keypPhoenix.py) | PHOENIX-2014-T frame folders → hand, upper-body, and selected face keypoints |
+Extract hand and upper-body landmarks from sign language videos or frame images using MediaPipe Holistic. The extractor writes one NumPy feature vector per retained frame and can save pose overlays for visual inspection. This research utility accompanies [*The Influence of Iconicity in Transfer Learning for Sign Language Recognition*](https://doi.org/10.1007/978-3-031-70239-6_16) (NLDB 2024).
 
 ## Quick start
 
-Use Python 3.10–3.12 on a platform supported by MediaPipe. Install the dependencies in a virtual environment.
+Use Python 3.10–3.12 on a platform supported by the pinned MediaPipe release. From the repository root, create a virtual environment.
 
 ```bash
 python -m venv .venv
-# Activate the environment for your shell before installing:
+```
+
+Activate it with `.venv\Scripts\Activate.ps1` in PowerShell or `source .venv/bin/activate` in Bash or Zsh. Then install the dependencies and try the extractor on one image.
+
+```bash
 python -m pip install -r requirements.txt
+python extract_keypoints.py path/to/frame.jpg output/keypoints
+```
+
+Use an image with a visible upper body. A successful run prints the number of saved and skipped frames and writes `output/keypoints/frame.jpg.npy`.
+
+## Batch extraction
+
+```bash
+python extract_keypoints.py data/frames output/frames
+python extract_keypoints.py data/videos output/videos --mode videos --overlays output/overlays
+python extract_keypoints.py data/phoenix output/phoenix --layout phoenix
 python extract_keypoints.py --help
 ```
 
-```bash
-python extract_keypoints.py data/frames output/keypoints
-python extract_keypoints.py data/videos output/keypoints --mode videos --overlays output/overlays
-python extract_keypoints.py data/phoenix output/phoenix --layout phoenix
-```
+Pass a file or a directory. The extractor scans directories recursively and follows the input directory structure. Keep output directories outside the input directory. Use a fresh output directory when changing layouts or filters so results from different runs stay separate.
 
-Pass a single file or a directory. Directories are scanned recursively, and output paths mirror the input tree. For example, an input image at `train/clip/frame.jpg` produces `train/clip/frame.jpg.npy`. A video at `train/clip.mp4` produces files such as `train/clip.mp4/frame_000001.npy`. Video filenames use the original frame number, so gaps indicate skipped frames.
+| Input relative to the dataset root | Keypoints relative to the output root |
+| --- | --- |
+| `train/clip/frame.jpg` | `train/clip/frame.jpg.npy` |
+| `train/clip.mp4` | `train/clip.mp4/frame_000001.npy`, then one file per retained frame |
 
-The standard layout has 138 values. The PHOENIX layout has 171 values and appends 11 facial points from the pose model. Frames without a detected pose are skipped. The main command writes `float32` by default and accepts `--dtype float64`. Use a fresh output directory when changing filters or layouts to avoid mixing results across runs.
+Video frames are numbered from 1 in decode order. Gaps indicate skipped frames. With `--overlays`, corresponding PNGs are saved under the overlay directory.
 
-The original script names remain available as shortcuts with the same input, output, and optional overlay arguments. The Chinese outlier scripts use wrist thresholds of 0.60 and 0.70, respectively. They keep a frame when either wrist's normalised y coordinate is below the threshold. The main command exposes this filter as `--wrist-threshold`.
+## Feature vectors
+
+| Layout | Values | Feature order |
+| --- | ---: | --- |
+| `standard` | 138 | Left hand (21 landmarks), right hand (21), left shoulder, right shoulder, left wrist, right wrist |
+| `phoenix` | 171 | Standard layout followed by 11 facial points from the pose model |
+
+Every landmark contributes `(x, y, z)` in MediaPipe's image landmark coordinates. Missing hands are zero-filled. Frames without a detected pose or with unreadable images are skipped. Arrays use `float32` by default. Select `--dtype float64` for pipelines that expect double precision.
+
+## Migrating from the original scripts
+
+Run `python extract_keypoints.py INPUT OUTPUT` with the matching options below. Add `--overlays DIR` to save pose overlays.
+
+| Previous script | Equivalent options |
+| --- | --- |
+| `convert2keypArabic-local.py`, `convert2keypChinese-local - Copy.py` | Default options |
+| `convert2keypArabic.py` | `--dtype float64` |
+| `convert2keypCSLvid.py` | `--mode videos --dtype float64` |
+| `convert2keypChinese-outlier60.py` | `--wrist-threshold 0.60` |
+| `convert2keypChinese-outlier70.py` | `--wrist-threshold 0.70` |
+| `convert2keypPhoenix.py` | `--layout phoenix --dtype float64` |
+
+The wrist filter keeps frames where either wrist's normalised y coordinate is below the given threshold.
 
 ## Research context
 

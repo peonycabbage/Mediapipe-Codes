@@ -119,16 +119,21 @@ def run(args, sources, source_root, cv2, np, solutions):
     return saved, skipped
 
 
-def main(mode="frames", layout="standard", wrist_threshold=None, dtype="float32"):
-    parser = argparse.ArgumentParser(description=__doc__)
+def main():
+    parser = argparse.ArgumentParser(
+        description=__doc__, formatter_class=argparse.ArgumentDefaultsHelpFormatter
+    )
     parser.add_argument("input", type=Path, help="Input file or dataset directory")
     parser.add_argument("output", type=Path, help="Directory for NumPy keypoints")
-    parser.add_argument("--mode", choices=("frames", "videos"), default=mode)
-    parser.add_argument("--layout", choices=("standard", "phoenix"), default=layout)
-    parser.add_argument("--wrist-threshold", type=float, default=wrist_threshold,
+    parser.add_argument("--mode", choices=("frames", "videos"), default="frames",
+                        help="Read frame images or decode video files")
+    parser.add_argument("--layout", choices=("standard", "phoenix"), default="standard",
+                        help="Landmark vector layout")
+    parser.add_argument("--wrist-threshold", type=float,
                         help="Keep a frame if either wrist y coordinate is below this value")
     parser.add_argument("--overlays", type=Path, help="Optional directory for pose overlays")
-    parser.add_argument("--dtype", choices=("float32", "float64"), default=dtype)
+    parser.add_argument("--dtype", choices=("float32", "float64"), default="float32",
+                        help="NumPy output precision")
     args = parser.parse_args()
     if args.wrist_threshold is not None and not 0 <= args.wrist_threshold <= 1:
         parser.error("--wrist-threshold must be between 0 and 1")
@@ -159,8 +164,11 @@ def main(mode="frames", layout="standard", wrist_threshold=None, dtype="float32"
         import mediapipe as mp
         import numpy as np
         solutions = mp.solutions
-    except (ImportError, AttributeError):
-        parser.exit(1, "Install the project dependencies with pip install -r requirements.txt\n")
+    except (ImportError, AttributeError) as error:
+        parser.exit(
+            1, f"Cannot load extraction dependencies: {error}\n"
+            "Install them with python -m pip install -r requirements.txt\n",
+        )
 
     try:
         saved, skipped = run(args, sources, source_root, cv2, np, solutions)
